@@ -254,12 +254,12 @@ Version:1
 		_p.lengthsegs = 1;
 		_p.widthsegs = this.division-1
 		tempMesh = copy _p.mesh
-	 
+		_shift = _p.width/2.0
 		for i= 1 to  this.division do (
 			_v = getvert tempMesh (this.division+i) 
 			-- move the top vertex in Z direction by value*scale , 
-		
-			setvert tempMesh (this.division+i)  [0,_v.x,values[i]*this.Force__Scale] -- 
+			meshop.movevert tempMesh (i)  [_shift,0,0]
+			meshop.movevert tempMesh (this.division+i)  [_shift,0,values[i]*this.Force__Scale] -- 
 		)
 		tempMesh
 		
@@ -284,12 +284,12 @@ Version:1
 	*/
 	fn FrameForceDiagram _m = (		
 		case this.component of (
-			1: meshop.attach _m (transformMesh (GenerateDiagram this.XForces) (rotateYmatrix (-90)))
-			2: meshop.attach _m (transformMesh (GenerateDiagram this.YForces) (rotateYmatrix (-90)))
-			3: meshop.attach _m (transformMesh (GenerateDiagram this.ZForces) (rotateYmatrix (-90)))
-			4: meshop.attach _m (transformMesh (GenerateDiagram this.XMoments) (rotateYmatrix (-90)))
-			5: meshop.attach _m (transformMesh (GenerateDiagram this.YMoments) (rotateYmatrix (-90)))
-			6: meshop.attach _m (transformMesh (GenerateDiagram this.ZMoments) (rotateYmatrix (-90)))
+			1: meshop.attach _m (GenerateDiagram this.XForces) --(transformMesh (GenerateDiagram this.XForces) (rotateYmatrix (-90)))
+			2: meshop.attach _m (GenerateDiagram this.YForces) --(transformMesh (GenerateDiagram this.YForces) (rotateYmatrix (-90)))
+			3: meshop.attach _m (GenerateDiagram this.ZForces) --(transformMesh (GenerateDiagram this.ZForces) (rotateYmatrix (-90)))
+			4: meshop.attach _m (GenerateDiagram this.XMoments) --(transformMesh (GenerateDiagram this.XMoments) (rotateYmatrix (-90)))
+			5: meshop.attach _m (GenerateDiagram this.YMoments) --(transformMesh (GenerateDiagram this.YMoments) (rotateYmatrix (-90)))
+			6: meshop.attach _m (GenerateDiagram this.ZMoments) --(transformMesh (GenerateDiagram this.ZMoments) (rotateYmatrix (-90)))
 		)
 	)
 	/*

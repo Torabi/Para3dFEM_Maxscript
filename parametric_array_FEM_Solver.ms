@@ -2,14 +2,14 @@
 /*
 loading definitions
 */
-filein ("C:\projects\parametric array\FEM\\"+"Definitions\\"+"FEM_Materials.ms")
+filein ("C:\projects\parametric array\FEM\Para3dFEM_Maxscript\Para3dFEM\Definitions\FEM_Materials.ms")
 
 /*
 loading the objects
 */
-filein ("C:\projects\parametric array\FEM\\"+"Objects\\"+"FEM_Load.ms")
-filein ("C:\projects\parametric array\FEM\\"+"Objects\\"+"FEM_Node.ms")
-filein ("C:\projects\parametric array\FEM\\"+"Objects\\"+"FEM_Element1D.ms")
+filein ("C:\projects\parametric array\FEM\Para3dFEM_Maxscript\Para3dFEM\Objects\FEM_Load.ms")
+filein ("C:\projects\parametric array\FEM\Para3dFEM_Maxscript\Para3dFEM\Objects\FEM_Node.ms")
+filein ("C:\projects\parametric array\FEM\Para3dFEM_Maxscript\Para3dFEM\Objects\FEM_Element1D.ms")
 
 /*
 loading assemblies 
@@ -59,7 +59,7 @@ category:"PARA_Addon"
 			
 			parrayLayer = layermanager.getLayerFromName "Parametric Array"
 			try(
-				parrayLayer.addnode pa
+				parrayLayer.addnode _pa
 			)catch()
 			newPara = true
 		)
