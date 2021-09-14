@@ -377,24 +377,29 @@ Version:1
 	fn ExtrudeProfile _m _h = (
 		local tmp1 = copy _m
 		
-		if (this.Display__Displacement and model_Element!= undefined  ) then 
+		if (this.Display__Displacement and model_Element!= undefined  and this.elementType =="Frame" ) then 
 		(
 			
 			local previous = [0,0,0]
 			local originPoint = [0,0,0]
 			local inv= (inverse this.transformProp.rotationpart)
+			local axisState = 1.0
 			
+			if not (close_enough (1+this.transformProp.row1.X) 1.0 10) do (axisState*= this.transformProp.row1.X)
+			if not (close_enough (1+this.transformProp.row2.Y) 1.0 10) do (axisState*= this.transformProp.row2.Y)
+			if not (close_enough (1+this.transformProp.row3.Z) 1.0 10) do (axisState*= this.transformProp.row3.Z)
+		
 			--print inv
 			for i=1 to (this.division+1) do (
 				local xi = ((2.0*(i-1.0)/this.division)-1)
 			
 				local dispVector = model_Element.GetInternalDisplacement xi				
 				--print [dispVector.X ,dispVector.Y, dispVector.Z]
-				local d =  this.Displacement__Scale*[dispVector.X ,dispVector.Y,dispVector.Z]
-				if (this.transformProp.row1.Z >0) do
-				(
-					d = -1.0*d
-				)
+				local flip = if axisState > 0 then 1 else -1
+				local d =  this.Displacement__Scale*[dispVector.X ,flip*dispVector.Y,flip*dispVector.Z]
+				
+				--if (axisState<0) do 	(d = -1.0*d)
+				
 				--d = d*inv
 				local directionVector = [(_h/this.division),0,0]+d- previous --[0,0,1.0-this.Displacement__Scale]+(this.Displacement__Scale*(_h/this.division)/t.Z)*t
 				
@@ -841,10 +846,16 @@ Version:1
 		)
 		if (this.Display__Displacement) then
 		(
-			 local dm = ComputedisplacementMatrix()		
+			if ( this.elementType == "Truss") then (
+				-- for truss we must use nodal displacmenets
+				local dm = ComputedisplacementMatrix()		
+				mesh =  transformMesh  tmpMesh dm	
+			)else(
+				mesh = tmpMesh	-- defirmation of the frame is already calculated
+			)
 			--meshop.moveVert tmpMesh #all dm.translationPart
 			--print dm.scalepart
-			mesh = tmpMesh -- transformMesh  tmpMesh dm	
+			 -- transformMesh  tmpMesh dm	
 		)else(
 			mesh= tmpMesh;			
 		)

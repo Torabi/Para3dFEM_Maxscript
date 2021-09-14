@@ -82,6 +82,19 @@ category:"PARA_Addon"
 	)		
 	fn init = (
 		model = dotnetobject "FiniteElementMethod.FEM_MAX"	
+		-- add bounding box of objects to the voxel
+		model.INIT()
+		for i=5 to delegate.channels.count do (
+			pa = delegate.channels[i]
+			if isvalidnode pa do (
+				for item in pa.array_nodes where isvalidnode item do (
+					local bb = nodeGetBoundingBox  item (matrix3 1)
+					model.AddBoundingBox (bb[1].X) (bb[1].Y) (bb[1].Z) (bb[2].X) (bb[2].Y) (bb[2].Z) 
+				)
+				
+			)
+		)
+		model.Voxelization()
 		model.SystemUnit = units.SystemType as string
 		this._nodes = CleanArray (this._nodes as array)
 		this._elements = CleanArray (this._elements as array)
@@ -189,49 +202,48 @@ category:"PARA_Addon"
 		)
 		isThereLoad
 	)
+
 	/*
 		add a new node or return a scene node for the given position
 	*/
 	fn addNode pos &newNodes &freshNodes = (
-		local _n,newNode
+		local _n
+		 
+		 
+		--local nextNodeINdex = model.GetNodeCount()+1
 		
-		local nextNodeINdex = model.GetNodeCount()+1
-		
-		if nextNodeINdex<=this._nodes.count then ( -- node is available in scene we will choose  the closest one
-			_n =  getItemByPosition this._nodes pos nextNodeIndex isvalidnode
+		-- first we add the model node and see if this was already existed
+		local _modelNode = model.addNode pos.x pos.y pos.z 
+		if (_modelNode==0) do (exit) -- an error happend
+		local nextNodeINdex  = 	abs _modelNode -- index of the new node
+		newNodes = newNodes or true
+		if (_modelNode>0) then (
+			-- model node has been added as a new node 
+			-- we need to create a max node or choose from existing node 
 			
-			if isvalidnode _n then (
-				newNode = false
-				_n.pos = pos
-				
-			)else(
-				_n  = FEM_Node pos:pos index:nextNodeINdex force_unit:this.forceUnit Force__Scale:this.ForceScale Displacement__Scale:this.DisplacementScale 
-				
-				newNode = true
+			if nextNodeINdex<=this._nodes.count do ( -- node is available in scene we will choose  the closest one
+				_n =  getItemByPosition this._nodes pos nextNodeIndex isvalidnode
+				if (isvalidNode _n) do (
+					_n.pos = pos					
+				)	
 				
 			)
-			
-		)else( -- node is not available in scene we will create one
-			_n  = FEM_Node pos:pos index:nextNodeINdex force_unit:this.forceUnit Force__Scale:this.ForceScale Displacement__Scale:this.DisplacementScale 
-			newNode = true
-			
-		)
-		local _modelNode = model.addNode pos.x pos.y pos.z 
+			if (not isvalidnode _n) do (
+				-- no chance to choose fron the existing nodes so we create a new one at the nextNodeINdex index
+				_n = FEM_Node pos:pos index:nextNodeINdex force_unit:this.forceUnit Force__Scale:this.ForceScale Displacement__Scale:this.DisplacementScale
+				-- place this in proper index
+				this._nodes[nextNodeINdex] = _n
+				freshNodes[nextNodeINdex]=true
+			)
 		
-		if _modelNode > 0 then ( -- node has been created succesfully
-			if newNode do (this._nodes[_modelNode] = _n)
-		)else if _modelNode< 0 then ( -- node exist  
-			if newNode do (delete _n)
-			_n = this._nodes[-1*_modelNode]					
-		)else( -- could not create the node
-			if newNode do delete _n
+		)else (
+			 
+			-- a model node exist in this location ,so we don't have to create a new node 
+			
+			_n = this._nodes[nextNodeINdex]	
 		)
-		if isvalidnode _n do (
-			newNodes[_n.index] = true
-			freshNodes[_n.index]  = newNode;
-			updateNode _n
-		)
-		_n
+		_n	
+			
 	)
 	
 	fn GetVectorsAngle v1 v2 v3=
@@ -286,6 +298,9 @@ category:"PARA_Addon"
 		)
 		tmp;
 	)
+	
+
+	
 	/*
 		add a new element or return a scene element which is close to the midpoint of two given node
 	*/
@@ -293,73 +308,73 @@ category:"PARA_Addon"
 		local _e -- the max node which represent the 1delement 
 		local newNode -- this is a flag , if true then means we just created a max node otherwise it means we are using an exisiting one
 		local pos = node1.pos--0.5*(node1.pos+node2.pos) -- claculate the midpoint 
-		local nextElementIndex = model.GetElementCount()+1 -- get the next element index 
+		--local nextElementIndex = model.GetElementCount()+1 -- get the next element index 
 		-- setting the elementTypes in nodes
 		if node1.elementType == "" do node1.elementType = elementType;
 		if node2.elementType == "" do node2.elementType = elementType;
-		-- we must add one more element to the number of elements in each node
-		node1.NumberOFElements +=1;
-		node2.NumberOFElements +=1;
-		if nextElementIndex<=this._elements.count then ( -- we still have more elements in scene than it's required let's choose one from them
-			/*
-			_e =  if (elementType == "Truss" ) then (
-				getItemByPosition this._elements pos nextElementIndex filterTrussElement
-			)else(
-				getItemByPosition this._elements pos nextElementIndex filterFrameElement
-			)
-			*/
-			_e = getItemByPosition this._elements pos nextElementIndex isvalidnode -- choose element from the scene by finding the closest one 
-			if isvalidnode _e then ( 
-				newNode = false	-- set this flag so we know we did'nt create a new one			
-				-- update the position and other properties of the scene element
-				_e.pos = pos;_e.node1 = node1;_e.node2=node2;_e.Force__Scale=this.forcescale;_e.force_unit=this.ForceUnit;_e.elementType = elementType; _e.Displacement__Scale=this.displacementScale
-			)else( -- we could'nt find an element from the scene ( maybe it was deleted)
-				-- here we create a new element (FEM_ELEMENT1D)
-				_e = 	FEM_Element1D node1:node1 node2:node2 pos:pos elementType:elementType index:nextElementIndex Force__Scale:this.forcescale force_unit:this.ForceUnit Displacement__Scale:this.displacementScale
-				
-				newNode = true -- set the flag so we know this is just created
-			)
-		)else( -- node is not available in scene we will create one
-			_e = 	FEM_Element1D  node1:node1 node2:node2 pos:pos elementType:elementType index:nextElementIndex Force__Scale:this.forcescale force_unit:this.ForceUnit Displacement__Scale:this.displacementScale
-			newNode = true-- set the flag so we know this is just created
-		)
-		XAxis = normalize (node2.pos-node1.pos) -- claculate the Zaxis of the element ( X axis in FEM)
-		YAxis = [0,1,0] -- let's consider YAxis is always in Y direction 
 		
-		if abs (dot [0,0,1] Xaxis) > 0.99 then ( -- in case the zaxis and yaxis are parallel (columns)
-						
-			YAxis = 	normalize (cross [1,0,0] XAxis)
-			ZAxis = 	normalize (cross XAxis YAxis)
+		
+		-- first we add the bar element to the model 
+		local modelIndex = model.AddFrameElement (node1.index-1) (node2.index-1) elementType
+		
+		if (modelIndex>0) do ( -- one of the nodes were not added ! TODO....
+			-- we must add one more element to the number of elements in each node
+			node1.NumberOFElements +=1;
+			node2.NumberOFElements +=1;
+			local nextElementIndex =  modelIndex
+			newElements[nextElementIndex] = true
 			
-		)else( -- if zaxis and yaxis are not parallel
-			YAxis = normalize (cross ZAxis XAxis)
-			ZAxis = 	normalize (cross XAxis YAxis)
 			
-		)
-		local NodeTransformation =  matrix3 XAxis YAxis ZAxis pos -- here we comine all axis and positon to a transform matrix
-		-- let's check again if YAxis is still upward 
-		if (ZAxis.z<0) do (
-			-- lets rotate the member around it's ZAxis to fix the direction
-			NodeTransformation = (rotateXMatrix 180)*NodeTransformation
-		)
-		_e.transformProp = _e.transform =NodeTransformation
-		model.AddFrameElement (node1.index-1) (node2.index-1) elementType
-		-- to be changed from frame to truss
-		/*
-		if elementType ==  "TrussElement" then (
-			model.AddFrameElement (node1.index-1) (node2.index-1) 
-		)else(
-			model.AddFrameElement (node1.index-1) (node2.index-1)  
+			-- new element is added , we check if we can find an existing element from scene to modify it 
+			if nextElementIndex<=this._elements.count do ( -- we still have more elements in scene than it's required let's choose one from them
 			
-		)
-		*/
-		if newNode do (
-			append this._elements _e
-			_e.index = this._elements.count
+				_e = getItemByPosition this._elements pos nextElementIndex isvalidnode -- choose element from the scene by finding the closest one 
+				if isvalidnode _e do (
+					-- modify the existing scene element
+					_e.pos = pos;_e.node1 = node1;_e.node2=node2;_e.Force__Scale=this.forcescale;_e.force_unit=this.ForceUnit;_e.elementType = elementType; _e.Displacement__Scale=this.displacementScale
+					
+				)
+			)
+
+			
+			if (not (isvalidNode _e)) do ( -- check if _e is assigned
+				-- ne element must be created 
+				_e = FEM_Element1D node1:node1 node2:node2 pos:node1.Pos elementType:elementType index:nextElementIndex Force__Scale:this.forcescale force_unit:this.ForceUnit Displacement__Scale:this.displacementScale					
+			)
+				
+			  
+			
+				--check if an element exist with the same nodes 
+				
+			XAxis = normalize (node2.pos-node1.pos) -- claculate the Zaxis of the element ( X axis in FEM)
+			YAxis = [0,1,0] -- let's consider YAxis is always in Y direction 
+			
+			if abs (dot [0,0,1] Xaxis) > 0.99 then ( -- in case the zaxis and yaxis are parallel (columns)
+							
+				YAxis = 	normalize (cross [1,0,0] XAxis)
+				ZAxis = 	normalize (cross XAxis YAxis)
+				
+			)else( -- if zaxis and yaxis are not parallel
+				YAxis = normalize (cross ZAxis XAxis)
+				ZAxis = 	normalize (cross XAxis YAxis)
+				
+			)
+			local NodeTransformation =  matrix3 XAxis YAxis ZAxis pos -- here we comine all axis and positon to a transform matrix
+			-- let's check again if YAxis is still upward 
+			if (ZAxis.z<0) do (
+				-- lets rotate the member around it's ZAxis to fix the direction
+				NodeTransformation = (rotateXMatrix 180)*NodeTransformation
+			)
+			_e.transformProp = _e.transform =NodeTransformation
+			
+			--if newNode == 0 do (
+				--append this._elements _e
+				--_e.index = this._elements.count
+			this._elements[nextElementIndex]	= _e
 			updateElement _e
-		)	
-		newElements[_e.index] = true	
-	
+			--)	
+			--newElements[_e.index] = true	
+		)
 		
 		
 	)
@@ -475,9 +490,13 @@ category:"PARA_Addon"
 			)else(
 				xAxis = GetSplinePlane sh i 2 
 			)
+			
 			for j =1 to verticesNo do (
 				local pos = getKnotPoint sh i j 
+				
 				currentNode = addNode pos &newNodes &freshNodes
+				
+				
 				if isvalidnode currentNode do (
 					if isvalidnode  preNode do (
 						if j>2 and j<verticesNo do (
@@ -500,13 +519,14 @@ category:"PARA_Addon"
 	fn makeModel = (
 		--if model == undefined do init()
 		init() -- to make a new model
-		local newNodes=#{}
+		local newNodes= false
 		local newElements=#{}
 		local freshNodes = #{}
 		for i=5 to delegate.channels.count do (
 			pa = delegate.channels[i]
 			if isvalidnode pa do (
 				for item in pa.array_nodes where isvalidnode item do (
+					
 					if superclassof item.baseobject == shape then (
 						if classof item.baseobject == line or classof item.baseobject == SplineShape then (
 							
@@ -531,7 +551,7 @@ category:"PARA_Addon"
 		-- now we remove extra elements and nodes from the arrays 
 		
 		-- create a parametric array of new nodes and elements
-		if not newNodes.isEmpty then (
+		if (newNodes) then (
 			--local newNodeArray = for item in newNodes  collect this._nodes[item]
 			for _n in freshNodes where isvalidnode this._nodes[_n] do this._nodes[_n].AutoConstraints();
 			ParametricArrayFromCollecttion (this._nodes as array) 1 "Nodes" #("4,1","4,2","4,3","4,4","4,5","4,6","4,16")
@@ -544,7 +564,7 @@ category:"PARA_Addon"
 		)else(
 			delegate.errorLog += "No element has been generated.\n" 
 		)
-		if not newNodes.isEmpty or not newElements.isEmpty do delegate.paranode.ArrangeChilds()
+		if newNodes or not newElements.isEmpty do delegate.paranode.ArrangeChilds()
 		this.needsReModel = false
 		this.needsUpdate = true;
 		--this.ModelSolved = false
@@ -586,6 +606,7 @@ category:"PARA_Addon"
 	fn updateModel = (
 		model.SystemUnit = units.SystemType as string		
 		model.INIT();
+ 
 		nodalLoadExist = updateNodes()
 		elementLoadExist  = updateElements()
 		if (nodalLoadExist == false and elementLoadExist == false) do delegate.errorLog += "No load found." 
