@@ -352,8 +352,8 @@ Version:1
 	*/
 	fn ComputedisplacementMatrix = (
 		local _h =(distance this.node1.pos this.node2.pos) 
-		local n1g = this.node1.getDisplacementMatrix()
-		local n2g = this.node2.getDisplacementMatrix()
+		local n1g = this.node1.getDisplacementMatrix this.Displacement__Scale
+		local n2g = this.node2.getDisplacementMatrix this.Displacement__Scale
 		local inv = inverse this.transformProp
 		
 		--local n1l = inv*n1g*this.transformProp

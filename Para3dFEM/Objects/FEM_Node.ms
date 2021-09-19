@@ -138,13 +138,13 @@ Version:1
 	/*
 		return the matrix representing the displacement
 	*/
-	fn getDisplacementMatrix = (
-		if (this.Display__Displacement) then
-		(		
-			(transmatrix [this.d_x*this.Displacement__Scale,this.d_y*this.Displacement__Scale,this.d_z*this.Displacement__Scale])--*(rotateXMatrix this.r_x)*(rotateXMatrix this.r_y)*(rotateXMatrix this.r_z)
-		)else(
-			matrix3 1
-		)
+	fn getDisplacementMatrix factor = (
+		--if (this.Display__Displacement) then
+		--(		
+			(transmatrix [this.d_x*factor,this.d_y*factor,this.d_z*factor])--*(rotateXMatrix this.r_x)*(rotateXMatrix this.r_y)*(rotateXMatrix this.r_z)
+		--)else(
+			--matrix3 1
+		--)
 	)
 	
 	------------- end of load functions -----------------------------
@@ -441,7 +441,7 @@ rollout reactions "Reactions" (
 		) 
 		if (this.Display__Displacement) then
 		(
-			displacementMatrix = getDisplacementMatrix()
+			displacementMatrix = getDisplacementMatrix this.Displacement__Scale
 			mesh = transformMesh tmpMesh displacementMatrix
 		)else(
 			mesh = tmpMesh
